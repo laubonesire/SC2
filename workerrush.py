@@ -1,0 +1,18 @@
+# Simplest bot possible, taken directly from the Python-SC2 repo
+# Simply sends all units to the enemy location and tell it to attack
+# Realistically it shouldn't ever win
+
+import sc2
+from sc2 import run_game, maps, Race, Difficulty
+from sc2.player import Bot, Computer
+
+class WorkerRushBot(sc2.BotAI):
+    async def on_step(self, iteration):
+        if iteration == 0:
+            for worker in self.workers:
+                await self.do(worker.attack(self.enemy_start_locations[0]))
+
+run_game(maps.get("Abyssal Reef LE"), [
+    Bot(Race.Zerg, WorkerRushBot()),
+    Computer(Race.Protoss, Difficulty.Medium)
+], realtime=True)
