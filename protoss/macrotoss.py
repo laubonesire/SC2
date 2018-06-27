@@ -4,18 +4,26 @@ import sc2
 import random
 from sc2 import run_game, maps, Race, Difficulty
 from sc2.player import Bot, Computer
-from sc2.constants import NEXUS, PROBE, PYLON, ASSIMILATOR, GATEWAY, CYBERNETICSCORE, ZEALOT, STALKER, FORGE
+from sc2.constants import *
 
 
-class MacroTossBot(sc2.BotAI):    
+class MacroTossBot(sc2.BotAI):
+    def __init__(self):
+        self.warpgate_started = False
+        self.warpgate_researched = False
+
     async def on_step(self, iteration):
         await self.distribute_workers()
         await self.build_workers()
         await self.build_pylons()
         await self.build_assimilators()
         await self.build_infantry_buildings()
+        await self.research_warpgate()
+        await self.morph_warpgates()
         await self.expand()
+        await self.build_forge()
         await self.build_infantry_units()
+#        await self.warp_infantry_units()
         await self.attack()
 
     async def build_workers(self):
@@ -58,24 +66,47 @@ class MacroTossBot(sc2.BotAI):
                 if self.can_afford(GATEWAY):
                     await self.build(GATEWAY, near=pylon)
  
+    async def research_warpgate(self):
+        if self.units(CYBERNETICSCORE).ready.exists and self.can_afford(RESEARCH_WARPGATE) and not self.warpgate_started:
+            ccore = self.units(CYBERNETICSCORE).ready.first
+            await self.do(ccore(RESEARCH_WARPGATE))
+            self.warpgate_started = True
+
+    async def morph_warpgates(self):
+        for gateway in self.units(GATEWAY).ready:
+            abilities = await self.get_available_abilities(gateway)
+            if AbilityId.MORPH_WARPGATE in abilities and self.can_afford(AbilityId.MORPH_WARPGATE):
+                await self.do(gateway(MORPH_WARPGATE))
+
     async def expand(self):
         if self.units(NEXUS).amount < 4 and self.units(PROBE).amount > self.units(NEXUS).amount * 18 and self.can_afford(NEXUS) and not self.already_pending(NEXUS) and self.units(GATEWAY).amount > 0:
             await self.expand_now()
 
     async def build_forge(self):
-        pylon = self.units(PYLON).ready
-        if pylon.exists:
-            if self.can_afford(FORGE):
+        if self.units(PYLON).ready.exists and not self.units(FORGE).exists:
+            pylon = self.units(PYLON).ready.random
+            if self.can_afford(FORGE) and len(self.units(GATEWAY)) > 2:
                 await self.build(FORGE, near=pylon)
 
     async def build_infantry_units(self):
         for gw in self.units(GATEWAY).ready.noqueue:
-            if self.can_afford(STALKER) and self.supply_left > 0 and self.units(CYBERNETICSCORE).exists and self.units(STALKER).amount <= self.units(ZEALOT).amount * 2:
+            if self.units(ZEALOT).amount < 1 and self.can_afford(ZEALOT):
+                await self.do(gw.train(ZEALOT))
+            elif self.units(ZEALOT).amount > 0 and self.units(CYBERNETICSCORE).exists and self.can_afford(STALKER) and self.supply_left > 0 and self.units(STALKER).amount < 1:
                 await self.do(gw.train(STALKER))
-            elif self.can_afford(ZEALOT) and self.supply_left > 0 and not self.units(CYBERNETICSCORE).ready:
-                await self.do(gw.train(ZEALOT))
-            elif self.can_afford(ZEALOT) and self.units(STALKER).amount >= self.units(ZEALOT).amount * 2:
-                await self.do(gw.train(ZEALOT))
+            elif self.can_afford(MORPH_WARPGATE):
+                await self.do(gw(MORPH_WARPGATE))
+    
+#    async def warp_infantry_units(self):
+#        for wg in self.units(WARPGATE).ready:
+#            abilities = await self.get_available_abilities(wg)
+#            if AbilityId.WARPGATETRAIN_ZEALOT in abilities:
+#                pos = units(PYLON).closest_to(enemy_start_locations)
+#                placement = await self.find_placement(AbilityId.WARPGATETRAIN_ZEALOT, pos, placement_step=1)
+#                if placement is None:
+#                    print("Can't place")
+#                    return
+#                await self.do(wg.warp_in(ZEALOT, placement))
 
     def find_target(self, state):
         if len(self.known_enemy_units) > 0:
@@ -99,7 +130,8 @@ class MacroTossBot(sc2.BotAI):
                     for s in self.units(UNIT).idle:
                         await self.do(s.attack(random.choice(self.known_enemy_units)))
 
+
 run_game(maps.get("AbyssalReefLE"), [
     Bot(Race.Protoss, MacroTossBot()),
-    Computer(Race.Terran, Difficulty.Hard)
-], realtime=False)
+    Computer(Race.Terran, Difficulty.Easy)
+    ], realtime=False)
