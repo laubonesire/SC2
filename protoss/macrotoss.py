@@ -52,9 +52,13 @@ class MacroTossBot(sc2.BotAI):
             for vespene in vespenes:
                 if self.units(PYLON).amount < 1:
                     break
+                if self.vespene > 200:
+                    break
                 if self.units(ASSIMILATOR).amount / 2 >= self.units(NEXUS).amount:
                     break
                 if not self.can_afford(ASSIMILATOR):
+                    break
+                if self.already_pending(ASSIMILATOR):
                     break
                 worker = self.select_build_worker(vespene.position)
                 if worker is None:
@@ -112,10 +116,10 @@ class MacroTossBot(sc2.BotAI):
                 if AbilityId.WARPGATETRAIN_ZEALOT in abilities:
                     pos = pylons.closest_to(self.enemy_start_locations[0]).position.to2.random_on_distance(4)
                     placement = await self.find_placement(AbilityId.WARPGATETRAIN_STALKER, pos, placement_step=1)
-                    if placement is None:
-                        print("can't place")
-                        return
-                    await self.do(wg.warp_in(STALKER, placement))
+                    if self.can_afford(STALKER) and self.units(STALKER).amount < self.units(ZEALOT).amount * 2:
+                        await self.do(wg.warp_in(STALKER, placement))
+                    elif self.can_afford(ZEALOT) and self.units(ZEALOT).amount <= self.units(STALKER).amount / 2:
+                        await self.do(wg.warp_in(ZEALOT, placement))
 
     def find_target(self, state):
         if len(self.known_enemy_units) > 0:
@@ -127,8 +131,8 @@ class MacroTossBot(sc2.BotAI):
     
     async def attack(self):
         #{UNIT: [n to attack, n to defend]}
-        army_comp = {ZEALOT: [8, 2],
-                     STALKER: [16, 4]}
+        army_comp = {ZEALOT: [8, 1],
+                     STALKER: [16, 2]}
         for UNIT in army_comp:
             if self.units(UNIT).amount > army_comp[UNIT][0] and self.units(UNIT).amount > army_comp[UNIT][1]:
                 for s in self.units(UNIT).idle:
@@ -142,5 +146,5 @@ class MacroTossBot(sc2.BotAI):
 
 run_game(maps.get("AbyssalReefLE"), [
     Bot(Race.Protoss, MacroTossBot()),
-    Computer(Race.Terran, Difficulty.Hard)
-    ], realtime=True)
+    Computer(Race.Protoss, Difficulty.Hard)
+    ], realtime=False)
