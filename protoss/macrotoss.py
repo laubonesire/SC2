@@ -4,7 +4,7 @@ import sc2
 import random
 from sc2 import run_game, maps, Race, Difficulty
 from sc2.player import Bot, Computer
-from sc2.constants import NEXUS, PROBE, PYLON, ASSIMILATOR, GATEWAY, CYBERNETICSCORE, STALKER
+from sc2.constants import NEXUS, PROBE, PYLON, ASSIMILATOR, GATEWAY, CYBERNETICSCORE, ZEALOT, STALKER
 
 
 
@@ -62,22 +62,29 @@ class MacroToss(sc2.BotAI):
     async def build_infantry_buildings(self):
         if self.units(PYLON).ready.exists:
             pylon = self.units(PYLON).ready.random
-            if self.units(GATEWAY).ready.exists:
-                if not self.units(CYBERNETICSCORE):
-                    if self.can_afford(CYBERNETICSCORE) and not self.already_pending(CYBERNETICSCORE):
-                        await self.build(CYBERNETICSCORE, near=pylon)
+            if self.units(NEXUS).amount < 2:
+                if self.units(GATEWAY).ready.exists:
+                    if not self.units(CYBERNETICSCORE):
+                        if self.can_afford(CYBERNETICSCORE) and not self.already_pending(CYBERNETICSCORE):
+                            await self.build(CYBERNETICSCORE, near=pylon)
+                else:
+                    if self.can_afford(GATEWAY) and self.units(GATEWAY).amount < 1:
+                        await self.build(GATEWAY, near=pylon)
             else:
                 if self.can_afford(GATEWAY) and self.units(GATEWAY).amount < self.units(NEXUS).amount * 3:
                     await self.build(GATEWAY, near=pylon)
  
     async def expand(self):
-        if self.units(NEXUS).amount < 4 and self.units(PROBE).amount > self.units(NEXUS).amount * 18 and self.can_afford(NEXUS) and not self.already_pending(NEXUS) and self.units(GATEWAY).amount > 1:
+        if self.units(NEXUS).amount < 4 and self.units(PROBE).amount > self.units(NEXUS).amount * 18 and self.can_afford(NEXUS) and not self.already_pending(NEXUS) and self.units(GATEWAY).amount > 0:
             await self.expand_now()
 
     async def build_infantry_units(self):
         for gw in self.units(GATEWAY).ready.noqueue:
-            if self.can_afford(STALKER) and self.supply_left > 0:
+            if self.can_afford(STALKER) and self.supply_left > 0 and self.units(CYBERNETICSCORE).exists:
                 await self.do(gw.train(STALKER))
+            else:
+                if self.can_afford(ZEALOT) and self.supply_left > 0:
+                    await self.do(gw.train(ZEALOT))
     
     async def attack(self):
         if self.stance == "Offensive":
@@ -87,4 +94,4 @@ class MacroToss(sc2.BotAI):
 run_game(maps.get("AbyssalReefLE"), [
     Bot(Race.Protoss, MacroToss()),
     Computer(Race.Terran, Difficulty.Easy)
-], realtime=True)
+], realtime=False)
