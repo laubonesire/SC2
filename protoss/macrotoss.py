@@ -7,9 +7,7 @@ from sc2.player import Bot, Computer
 from sc2.constants import NEXUS, PROBE, PYLON, ASSIMILATOR, GATEWAY, CYBERNETICSCORE, ZEALOT, STALKER
 
 
-class MacroTossBot(sc2.BotAI):
-    stance = "Macro"
-    
+class MacroTossBot(sc2.BotAI):    
     async def on_step(self, iteration):
         await self.distribute_workers()
         await self.build_workers()
@@ -51,16 +49,13 @@ class MacroTossBot(sc2.BotAI):
     async def build_infantry_buildings(self):
         if self.units(PYLON).ready.exists:
             pylon = self.units(PYLON).ready.random
-            if self.units(NEXUS).amount < 2:
-                if self.units(GATEWAY).ready.exists:
-                    if not self.units(CYBERNETICSCORE):
-                        if self.can_afford(CYBERNETICSCORE) and not self.already_pending(CYBERNETICSCORE):
-                            await self.build(CYBERNETICSCORE, near=pylon)
-                else:
-                    if self.can_afford(GATEWAY) and self.units(GATEWAY).amount < 1:
-                        await self.build(GATEWAY, near=pylon)
-            elif self.units(NEXUS).amount > 1:
-                if self.can_afford(GATEWAY) and self.units(GATEWAY).amount < self.units(NEXUS).amount * 3:
+
+            if self.units(GATEWAY).exists and not self.units(CYBERNETICSCORE).exists:
+                if self.can_afford(CYBERNETICSCORE) and not self.already_pending(CYBERNETICSCORE):
+                    await self.build(CYBERNETICSCORE, near=pylon)
+            
+            elif len(self.units(GATEWAY)) < len(self.units(NEXUS)) * 2:
+                if self.can_afford(GATEWAY):
                     await self.build(GATEWAY, near=pylon)
  
     async def expand(self):
