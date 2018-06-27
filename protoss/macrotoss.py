@@ -7,13 +7,10 @@ from sc2.player import Bot, Computer
 from sc2.constants import NEXUS, PROBE, PYLON, ASSIMILATOR, GATEWAY, CYBERNETICSCORE, ZEALOT, STALKER
 
 
-
-
-class MacroToss(sc2.BotAI):
+class MacroTossBot(sc2.BotAI):
     stance = "Macro"
     
     async def on_step(self, iteration):
-        await self.select_stance()
         await self.distribute_workers()
         await self.build_workers()
         await self.build_pylons()
@@ -23,17 +20,9 @@ class MacroToss(sc2.BotAI):
         await self.build_infantry_units()
         await self.attack()
 
-    async def select_stance(self):
-        if self.known_enemy_units.amount < 1:
-            self.stance = "Macro"
-        if self.known_enemy_units.amount > 0:
-            self.stance = "Defensive"
-        if self.units(STALKER).amount > self.known_enemy_units.amount and self.units(STALKER).amount > 8:
-            self.stance = "Offensive"
-    
     async def build_workers(self):
         for nexus in self.units(NEXUS).ready.noqueue:
-            if self.can_afford(PROBE) and self.units(PROBE).amount < 60:
+            if self.can_afford(PROBE) and self.units(PROBE).amount < self.units(NEXUS).amount * 25:
                 await self.do(nexus.train(PROBE))
 
     async def build_pylons(self):
@@ -70,7 +59,7 @@ class MacroToss(sc2.BotAI):
                 else:
                     if self.can_afford(GATEWAY) and self.units(GATEWAY).amount < 1:
                         await self.build(GATEWAY, near=pylon)
-            else:
+            elif self.units(NEXUS).amount > 1:
                 if self.can_afford(GATEWAY) and self.units(GATEWAY).amount < self.units(NEXUS).amount * 3:
                     await self.build(GATEWAY, near=pylon)
  
@@ -83,15 +72,28 @@ class MacroToss(sc2.BotAI):
             if self.can_afford(STALKER) and self.supply_left > 0 and self.units(CYBERNETICSCORE).exists:
                 await self.do(gw.train(STALKER))
             else:
-                if self.can_afford(ZEALOT) and self.supply_left > 0:
+                if self.can_afford(ZEALOT) and self.supply_left > 0 and not self.units(CYBERNETICSCORE).ready:
                     await self.do(gw.train(ZEALOT))
+
+    def find_target(self, state):
+        if len(self.known_enemy_units) > 0:
+            return random.choice(self.known_enemy_units)
+        elif len(self.known_enemy_structures) > 0:
+            return random.choice(self.known_enemy_structures)
+        else:
+            return self.enemy_start_locations[0]
     
     async def attack(self):
-        if self.stance == "Offensive":
+        if self.units(STALKER).amount > 15:
             for s in self.units(STALKER).idle:
-                await self.do(s.attack(random.choice(self.known_enemy_units)))
+                await self.do(s.attack(self.find_target(self.state)))
+
+        elif self.units(STALKER).amount > 3:
+            if len(self.known_enemy_units) > 0:
+                for s in self.units(STALKER).idle:
+                    await self.do(s.attack(random.choice(self.known_enemy_units)))
 
 run_game(maps.get("AbyssalReefLE"), [
-    Bot(Race.Protoss, MacroToss()),
+    Bot(Race.Protoss, MacroTossBot()),
     Computer(Race.Terran, Difficulty.Easy)
 ], realtime=False)
