@@ -1,13 +1,19 @@
 # Maximizing protoss economy early on
 
 import sc2
+import random
 from sc2 import run_game, maps, Race, Difficulty
 from sc2.player import Bot, Computer
 from sc2.constants import NEXUS, PROBE, PYLON, ASSIMILATOR, GATEWAY, CYBERNETICSCORE, STALKER
 
 
+
+
 class MacroToss(sc2.BotAI):
+    stance = "Macro"
+    
     async def on_step(self, iteration):
+        await self.select_stance()
         await self.distribute_workers()
         await self.build_workers()
         await self.build_pylons()
@@ -15,6 +21,15 @@ class MacroToss(sc2.BotAI):
         await self.build_infantry_buildings()
         await self.expand()
         await self.build_infantry_units()
+        await self.attack()
+
+    async def select_stance(self):
+        if self.known_enemy_units.amount < 1:
+            self.stance = "Macro"
+        if self.known_enemy_units.amount > 0:
+            self.stance = "Defensive"
+        if self.units(STALKER).amount > self.known_enemy_units.amount and self.units(STALKER).amount > 8:
+            self.stance = "Offensive"
     
     async def build_workers(self):
         for nexus in self.units(NEXUS).ready.noqueue:
@@ -63,8 +78,13 @@ class MacroToss(sc2.BotAI):
         for gw in self.units(GATEWAY).ready.noqueue:
             if self.can_afford(STALKER) and self.supply_left > 0:
                 await self.do(gw.train(STALKER))
+    
+    async def attack(self):
+        if self.stance == "Offensive":
+            for s in self.units(STALKER).idle:
+                await self.do(s.attack(random.choice(self.known_enemy_units)))
 
 run_game(maps.get("AbyssalReefLE"), [
     Bot(Race.Protoss, MacroToss()),
     Computer(Race.Terran, Difficulty.Easy)
-], realtime=False)
+], realtime=True)
