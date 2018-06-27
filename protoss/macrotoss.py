@@ -66,7 +66,7 @@ class MacroTossBot(sc2.BotAI):
         pylon = self.units(PYLON).ready
         if pylon.exists:
             if self.can_afford(FORGE):
-                await self.build(FORGE, near=pylon.closest_to(nexus))
+                await self.build(FORGE, near=pylon)
 
     async def build_infantry_units(self):
         for gw in self.units(GATEWAY).ready.noqueue:
@@ -87,8 +87,8 @@ class MacroTossBot(sc2.BotAI):
     
     async def attack(self):
         #{UNIT: [n to attack, n to defend]}
-        army_comp = {ZEALOT: [7, 2],
-                     STALKER: [15, 4]}
+        army_comp = {ZEALOT: [8, 2],
+                     STALKER: [16, 4]}
         for UNIT in army_comp:
             if self.units(UNIT).amount > army_comp[UNIT][0] and self.units(UNIT).amount > army_comp[UNIT][1]:
                 for s in self.units(UNIT).idle:
@@ -102,4 +102,4 @@ class MacroTossBot(sc2.BotAI):
 run_game(maps.get("AbyssalReefLE"), [
     Bot(Race.Protoss, MacroTossBot()),
     Computer(Race.Terran, Difficulty.Hard)
-], realtime=True)
+], realtime=False)
